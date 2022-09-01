@@ -1,9 +1,15 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use std::io;
 
-async fn hello() -> impl Responder {
+async fn index() -> impl Responder {
     HttpResponse::Ok().body("Hello World")
 }
 
-fn main() {
-    println!("Hello, world!");
+#[actix_web::main]
+async fn main() -> io::Result<()> {
+    println!("listening on port 8080");
+    HttpServer::new(|| App::new().route("/hello", web::get().to(index)))
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
 }
