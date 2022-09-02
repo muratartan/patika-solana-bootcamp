@@ -1,6 +1,7 @@
 use actix_files::Files;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use handlebars::Handlebars;
+use serde_json::json;
 
 use std::io;
 
@@ -33,9 +34,16 @@ async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    let mut handlebars = Handlebars::new();
+    handlebars
+        .register_templates_directory(".html", "./static/")
+        .unwrap();
+    let handlebars_ref = web::Data::new(handlebars);
+
     println!("Listening on port 8080");
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
+            .app_data(handlebars_ref.clone())
             .service(Files::new("/static", "static"))
             .route("/", web::get().to(index))
     })
