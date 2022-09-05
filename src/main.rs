@@ -14,6 +14,13 @@ mod schema;
 use self::models::*;
 use self::schema::cats::dsl::*;
 
+type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
+
+struct IndexTemplatedata {
+    project_name: String,
+    cats: Vec<self::models::Cat>,
+}
+
 async fn index(
     hb: web::Data<Handlebars<'_>>,
     pool: web::Data<DbPool>,
