@@ -6,37 +6,31 @@ use serde_json::json;
 use std::io;
 
 use diesel::pg::PgConnection;
-use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+use diesel::{connection, prelude::*};
 
 mod models;
+mod schema;
 use self::models::*;
+use self::schema::cats::dsl::*;
 
-async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
-    let data = json!({
-        "project_name": "Catdex",
-        "cats": [
-            {
-                "name": "British short hair",
-                "image_path": "/static/image/british-shorthair.jpg"
-            },
-            {
-                "name": "British long hair",
-                "image_path": "/static/image/british-longhair.jpg"
-            },
-            {
-                "name": "Russian blue",
-                "image_path": "/static/image/russian-blue.jpg"
-            },
-            {
-                "name": "Van cat",
-                "image_path": "/static/image/van-cat.jpg"
-            },
-        ]
-    });
+async fn index(
+    hb: web::Data<Handlebars<'_>>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let connection = pool.get().expect("can't get db connection from pool");
+
+    let cats_data = web::block(move || cats.limit(100).load::<Cat>(&connection))
+        .await
+        .map_err(|| HttpResponse::InternalServerError().finish())?;
+
+    let data = IndexTemplatedata {
+        project_name: "Catdex".to_string(),
+        cats: cats_data,
+    };
 
     let body = hb.render("index", &data).unwrap();
-    HttpResponse::Ok().body(body)
+    Ok(HttpResponse::Ok().body(body))
 }
 
 #[actix_web::main]
