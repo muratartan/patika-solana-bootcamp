@@ -1,23 +1,27 @@
+#[macro_use]
+extern crate diesel;
+
 use actix_files::Files;
 use actix_web::{http, web, App, Error, HttpResponse, HttpServer};
 use awmp::Parts;
-use handlebars::Handlebars;
-use serde_json::json;
-
 use std::collections::HashMap;
-use std::io;
-
+use std::env;
+use diesel::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{self, ConnectionManager};
-use diesel::{connection, prelude::*};
+use serde::{Serialize};
+
+use self::models::*;
+
+use handlebars::Handlebars;
 
 mod models;
 mod schema;
-use self::models::*;
 use self::schema::cats::dsl::*;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
+#[derive(Serialize)]
 struct IndexTemplatedata {
     project_name: String,
     cats: Vec<self::models::Cat>,
