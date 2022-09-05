@@ -1,8 +1,10 @@
 use actix_files::Files;
 use actix_web::{http, web, App, Error, HttpResponse, HttpServer};
+use awmp::Parts;
 use handlebars::Handlebars;
 use serde_json::json;
 
+use std::collections::HashMap;
 use std::io;
 
 use diesel::pg::PgConnection;
@@ -45,6 +47,48 @@ async fn add(hb: web::Data<Handlebars<'_>>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().body(body))
 }
 
+async fn add_cat_form(pool: web::Data<DbPool>, mut parts: Parts) -> Result<HttpResponse, Error> {
+    let file_path = parts
+        .files
+        .take("image")
+        .pop()
+        .and_then(|f| f.persist_in("./static/image").ok())
+        .unwrap_or_default();
+
+    let text_fields: HashMap<_, _> = parts.texts.as_pairs().into_iter().collect();
+
+    let connection = pool.get().expect("Can't get db connection from pool");
+
+    let new_cat = NewCat {
+        name: text_fields.get("name").unwrap().to_string(),
+        image_path: file_path.to_string_lossy().to_string(),
+    };
+
+    web::block(move || {
+        diesel::insert_into(cats)
+            .values(&new_cat)
+            .execute(&connection)
+    })
+    .await
+    .map_err(|_| HttpResponse::InternalServerError().finish())?;
+
+    Ok(HttpResponse::SeeOther()
+        .header(http::header::LOCATION, "/")
+        .finish())
+}
+
+async fn cat(web::Data<Handlebars<'_>>,pool: web::Data<DbPool>, cat_id: web::Path<i32>) -> Result<HttpResponse,Error> {
+    let connection = pool.get().expect(cant get db connection from pool);
+
+    let cat_data = web::block(move || cats.filter(id.eq(cat_id.into_inner())).first::<Cat>(&connection))
+        .await
+        .map_err(|_| {HttpResponse::InternalServerError().finish()})?;
+
+    let body = hb.render("cat",&cat_data).unwrap();
+
+    Ok(HttpResponse::Ok().body(body))
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     let mut handlebars = Handlebars::new();
@@ -67,6 +111,8 @@ async fn main() -> io::Result<()> {
             .service(Files::new("/static", "static"))
             .route("/", web::get().to(index))
             .route("/add", web::get().to(add))
+            .route("/add_cat_form", web::post().to(add_cat_form))
+            .route("/cat/{id}", web::get().to(cat))
     })
     .bind("127.0.0.1:8080")?
     .run()
