@@ -5,6 +5,9 @@ use serde_json::json;
 
 use std::io;
 
+mod models;
+use self::models::*;
+
 async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
     let data = json!({
         "project_name": "Catdex",
