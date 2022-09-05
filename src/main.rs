@@ -40,6 +40,11 @@ async fn index(
     Ok(HttpResponse::Ok().body(body))
 }
 
+async fn add(hb: web::Data<Handlebars<'_>>) -> Result<HttpResponse, Error> {
+    let body = hb.render("add", &{}).unwrap();
+    Ok(HttpResponse::Ok().body(body))
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     let mut handlebars = Handlebars::new();
@@ -61,6 +66,7 @@ async fn main() -> io::Result<()> {
             .data(pool.clone())
             .service(Files::new("/static", "static"))
             .route("/", web::get().to(index))
+            .route("/add", web::get().to(add))
     })
     .bind("127.0.0.1:8080")?
     .run()
